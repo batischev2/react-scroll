@@ -4,27 +4,47 @@ import "./test.scss";
 import Article from "../Article/Article";
 
 const Test = () => {
-  const [articles, setArticles] = useState([]);
-  const [fetching, setFetching] = useState(true);
-
+  //массив, куда я записываю все последующие статьи
+  const [articlesArray, setArticlesArray] = useState([]);
+  // id следующей запришиваемой статьи
+  const [currentPage, setCurrentPage] = useState(1);
+  //текущая видимая статья
+  const [articleSelect, setArticleSelect] = useState(null);
+  // ссылки на статьи в дом дереве
   const itemsRef = useRef([]);
-  const [articleHeight, setArticleHeight] = useState(null);
 
   // Записываем в массив itemsRef ссылку в дом дереве на каждую статью
   const updateItemsRef = (index) => (element) => {
     itemsRef.current[index] = element;
   };
 
+  //1 запрос на получение следующей статьи: текст
+  const fetchNextArticleText = () => {
+    axios
+      .get(`https://jsonplaceholder.typicode.com/posts/${currentPage}`)
+      .then((res) => {
+        setArticlesArray((prevArticles) => [...prevArticles, res.data]);
+        setCurrentPage(currentPage + 1);
+      });
+  };
+
+  //2 запрос на получение следующей статьи: изображения
+  const fetchNextArticleImage = () => {
+    console.log("fetchNextArticleImage");
+    // axios
+    //   .get(`https://jsonplaceholder.typicode.com/posts/${currentPage}`)
+    //   .then((res) => {
+    //     setArticlesArray((prevArticles) => [...prevArticles, res.data]);
+    //     setCurrentPage(currentPage + 1);
+    //   });
+  };
+
   //делаем запрос на получение новой статаьи при изменении состояния fetching
   useEffect(() => {
-    if (fetching) {
-      axios
-        .get(
-          "https://newsapi.org/v2/top-headlines?country=us&apiKey=28622fdae70f4a6891fba38c2d2d43a3"
-        )
-        .then((res) => setArticles(res.data.articles));
-    }
-  }, [fetching]);
+    axios
+      .get("https://jsonplaceholder.typicode.com/posts/1")
+      .then((res) => setArticlesArray([res.data]));
+  }, []);
 
   useEffect(() => {
     function scrollHandler() {
@@ -33,33 +53,25 @@ const Test = () => {
         // getBoundingClientRect() - получение позиции html элемента(нашей статьи) по отношению к странице(растояние до начала и конца страницы)
         const rect = item.getBoundingClientRect();
 
-        // console.log(" item", item); - видимый item
-        // console.log(rect.top); - от начала видимой статьи до начала экрана
-        // console.log("Height item", item.clientHeight); - высота всей статьи
-
-        // Первый подход, статья считается видимой, когда её начало совпадает с началом экрана
+        if (
+          rect.top < window.innerHeight &&
+          rect.bottom >= item.clientHeight / 2
+        ) {
+          setArticleSelect(item);
+          return item;
+        }
 
         // if (rect.top < window.innerHeight && rect.bottom >= 0) {
-        //   console.log(rect.top);
-        //   console.log(rect.bottom);
-        //   console.log(item.clientHeight);
-        //   return item;
-        // }
-
-        // Второй подход, мы считаем следующую статью видимой когда длина до конца экрана больше или равна половине длины текущей статьи. По факту как только следующая статья попадает чуть-чуть в экран, она считается видимой
-
-        // if (
-        //   rect.top < window.innerHeight &&
-        //   rect.bottom >= item.clientHeight / 2
-        // ) {
-        //   console.log(rect.top);
-        //   console.log(rect.bottom);
-        //   console.log(item.clientHeight);
+        //   setArticleSelect(item);
         //   return item;
         // }
       });
 
-      console.log(visibleArticles);
+      if (visibleArticles !== articleSelect) {
+        setArticleSelect(visibleArticles);
+      } else {
+        // fetchNextArticleImage();
+      }
     }
 
     // добавляем и убираем скролл к всему документу
@@ -71,9 +83,13 @@ const Test = () => {
     };
   }, []);
 
+  useEffect(() => {
+    fetchNextArticleText();
+  }, [articleSelect]);
+
   return (
     <div className="test">
-      {articles.map((item, key) => {
+      {articlesArray.map((item, key) => {
         return (
           <Article article={item} key={key} articleRef={updateItemsRef(key)} />
         );
