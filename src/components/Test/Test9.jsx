@@ -3,24 +3,31 @@ import React, { useEffect, useRef, useState } from "react";
 import "./test.scss";
 import Article from "../Article/Article";
 
-const Test6 = () => {
+const Test9 = () => {
+  //массив, куда я записываю все последующие статьи
   const [articlesArray, setArticlesArray] = useState([]);
+  // id следующей запрашиваемой статьи
   const [currentPage, setCurrentPage] = useState(1);
-  const [articleSelect, setArticleSelect] = useState(null);
+  // id текущей видимой статьи для url
   const [idArticleVisible, setIdArticleVisible] = useState(1);
+  // ссылки на статьи в DOM дереве
   const itemsRef = useRef([]);
 
+  // Записываем в массив itemsRef ссылку в DOM дереве на каждую статью
   const updateItemsRef = (index) => (element) => {
     itemsRef.current[index] = element;
   };
 
+  // Функция для извлечения id из URL
   const getIdFromUrl = () => {
     const path = window.location.pathname;
     const pathParts = path.split("/");
     const id = parseInt(pathParts[pathParts.length - 1], 10);
-    return isNaN(id) ? 1 : id;
+    const savedId = localStorage.getItem("idArticleVisible");
+    return savedId ? parseInt(savedId, 10) : isNaN(id) ? 1 : id;
   };
 
+  //запрос на получение статьи по id
   const fetchArticleById = async (id) => {
     const response = await axios.get(
       `https://jsonplaceholder.typicode.com/posts/${id}`
@@ -28,32 +35,32 @@ const Test6 = () => {
     return response.data;
   };
 
-  const loadInitialArticles = async (initialId) => {
-    const initialArticle = await fetchArticleById(initialId);
-    setArticlesArray([initialArticle]);
+  // Загрузка начальной статьи
+  const loadInitialArticle = async (initialId) => {
+    const article = await fetchArticleById(initialId);
+    setArticlesArray([article]);
     setCurrentPage(initialId + 1);
   };
 
   useEffect(() => {
     const initialId = getIdFromUrl();
     setIdArticleVisible(initialId);
-    loadInitialArticles(initialId);
+    loadInitialArticle(initialId);
   }, []);
 
   useEffect(() => {
     const handleScroll = () => {
-      itemsRef.current.forEach((item, index) => {
-        if (item) {
-          const rect = item.getBoundingClientRect();
-          if (
-            rect.top < window.innerHeight &&
-            rect.bottom >= window.innerHeight / 2
-          ) {
-            setArticleSelect(item);
-            setIdArticleVisible(index + 1);
-            localStorage.setItem("idArticleVisible", index + 1);
-          }
+      const visibleArticles = itemsRef.current.find((item, index) => {
+        const rect = item.getBoundingClientRect();
+        if (
+          rect.top < window.innerHeight &&
+          rect.bottom >= window.innerHeight / 2
+        ) {
+          setIdArticleVisible(index + 1);
+          localStorage.setItem("idArticleVisible", index + 1);
+          return true;
         }
+        return false;
       });
     };
 
@@ -65,13 +72,14 @@ const Test6 = () => {
 
   useEffect(() => {
     if (idArticleVisible) {
+      //первый вариант
       const newUrl = `/page/test/${idArticleVisible}`;
       window.history.pushState(null, "", newUrl);
     }
   }, [idArticleVisible]);
 
   useEffect(() => {
-    if (articleSelect) {
+    if (articlesArray.length && idArticleVisible === articlesArray.length) {
       const fetchNextArticle = async () => {
         const nextArticle = await fetchArticleById(currentPage);
         setArticlesArray((prevArticles) => [...prevArticles, nextArticle]);
@@ -79,7 +87,7 @@ const Test6 = () => {
       };
       fetchNextArticle();
     }
-  }, [articleSelect]);
+  }, [idArticleVisible, articlesArray.length]);
 
   return (
     <div className="test">
@@ -90,4 +98,4 @@ const Test6 = () => {
   );
 };
 
-export default Test6;
+export default Test9;
