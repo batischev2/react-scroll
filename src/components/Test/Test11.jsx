@@ -17,6 +17,8 @@ const Test11 = () => {
   // Ссылки на статьи в DOM дереве
   const itemsRef = useRef([]);
 
+  const [previousVisibleIndex, setPreviousVisibleIndex] = useState(null);
+
   // Функция для обновления itemsRef, которая сохраняет ссылку на DOM элемент статьи.
   const updateItemsRef = (index) => (element) => {
     itemsRef.current[index] = element;
@@ -34,6 +36,7 @@ const Test11 = () => {
   //Функция для запроса статьи по ID
   const fetchArticleById = async (id) => {
     try {
+      console.log(`Fetching article with ID: ${id}`);
       const response = await axios.get(
         `https://jsonplaceholder.typicode.com/posts/${id}`
       );
@@ -45,14 +48,55 @@ const Test11 = () => {
 
   //Загрузка начальной статьи, и установка текущего состояния.
   const loadInitialArticle = async (initialId) => {
+    console.log(`Loading initial article with ID: ${initialId}`);
     const article = await fetchArticleById(initialId);
     setArticlesArray([article]);
     setCurrentPage(initialId + 1);
   };
 
+  //Функция для запроса следующей статьи:
+  const fetchNextArticle = async () => {
+    // Останавливаем выполнение, если больше нет статей для запроса
+    if (!hasMoreArticles) {
+      console.log("No more articles to fetch.");
+      return;
+    }
+    let success = false;
+    let nextArticle = null;
+    let nextPage = currentPage;
+    let localErrorCount = errorCount;
+
+    while (!success && errorCount < 100) {
+      try {
+        nextArticle = await fetchArticleById(nextPage);
+        success = true;
+      } catch (error) {
+        nextPage += 1;
+        localErrorCount += 1;
+        if (localErrorCount >= 100) {
+          console.log(
+            "Reached 100 failed attempts, stopping further requests."
+          );
+          setHasMoreArticles(false);
+          setErrorCount(localErrorCount);
+          return;
+        }
+      }
+    }
+
+    if (success && nextArticle) {
+      setArticlesArray((prevArticles) => [...prevArticles, nextArticle]);
+      setCurrentPage(nextPage + 1);
+      setErrorCount(0);
+    } else {
+      setErrorCount(localErrorCount); // Обновляем счетчик ошибок в состоянии
+    }
+  };
+
   //Начальная загрузка статьи
   useEffect(() => {
     const initialId = getIdFromUrl();
+    console.log("Initial ID from URL or localStorage:", initialId);
     setIdArticleVisible(initialId);
     loadInitialArticle(initialId);
   }, []);
@@ -60,13 +104,23 @@ const Test11 = () => {
   //обработчик прокрутки, который обновляет видимую статью и сохраняет ее ID в localStorage
   useEffect(() => {
     const handleScroll = () => {
-      const visibleArticleIndex = itemsRef.current.findIndex((item) => {
-        const rect = item.getBoundingClientRect();
-        return (
-          rect.top < window.innerHeight && rect.bottom >= window.innerHeight / 2
-        );
+      const visibleArticleIndex = itemsRef.current.findIndex((item, index) => {
+        if (item) {
+          const rect = item.getBoundingClientRect();
+          return (
+            rect.top < window.innerHeight &&
+            rect.bottom >= window.innerHeight / 2
+          );
+        }
+        return false;
       });
-      if (visibleArticleIndex !== -1) {
+
+      if (
+        visibleArticleIndex !== -1 &&
+        visibleArticleIndex !== previousVisibleIndex
+      ) {
+        console.log(`Visible article index: ${visibleArticleIndex}`);
+        setPreviousVisibleIndex(visibleArticleIndex);
         setIdArticleVisible(visibleArticleIndex + 1);
         localStorage.setItem("idArticleVisible", visibleArticleIndex + 1);
       }
@@ -76,54 +130,30 @@ const Test11 = () => {
     return () => {
       document.removeEventListener("scroll", handleScroll);
     };
-  }, []);
+  }, [previousVisibleIndex]);
 
   // изменение URL при изменении видимой статьи
   useEffect(() => {
+    console.log(`idArticleVisible changed to: ${idArticleVisible}`);
     if (idArticleVisible) {
       const newUrl = `/page/test/${idArticleVisible}`;
+      console.log(`Updating URL to: ${newUrl}`);
       window.history.replaceState(null, "", newUrl);
     }
   }, [idArticleVisible]);
 
-  //Функция для запроса следующей статьи:
-  const fetchNextArticle = async () => {
-    // Останавливаем выполнение, если больше нет статей для запроса
-    if (!hasMoreArticles) {
-      return;
-    }
-    let success = false;
-    let nextArticle = null;
-    let nextPage = currentPage;
-
-    while (!success && errorCount < 100) {
-      try {
-        nextArticle = await fetchArticleById(nextPage);
-        success = true;
-      } catch (error) {
-        nextPage += 1;
-      }
-    }
-
-    if (success && nextArticle) {
-      setArticlesArray((prevArticles) => [...prevArticles, nextArticle]);
-      setCurrentPage(nextPage + 1);
-      setErrorCount(0);
-    } else if (errorCount >= 100) {
-      setHasMoreArticles(false);
-    }
-  };
-
   //запрос следующей статьи, если видимая статья - последняя в массиве
   useEffect(() => {
     if (
+      hasMoreArticles &&
       idArticleVisible !== null &&
       idArticleVisible === articlesArray.length &&
       articlesArray.length > 0
     ) {
+      console.log("Fetching next article...");
       fetchNextArticle();
     }
-  }, [idArticleVisible, articlesArray.length]);
+  }, [idArticleVisible, articlesArray.length, hasMoreArticles]);
 
   return (
     <div className="test">
