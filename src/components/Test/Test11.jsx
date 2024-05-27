@@ -160,16 +160,6 @@ const Test11 = () => {
     }
   }, [idArticleVisible, articlesArray.length, hasMoreArticles]);
 
-  // изменение URL при изменении видимой статьи
-  useLayoutEffect(() => {
-    console.log(`idArticleVisible changed to: ${idArticleVisible}`);
-    if (idArticleVisible !== null) {
-      const newUrl = `/page/test/${idArticleVisible}`;
-      console.log(`Updating URL to: ${newUrl}`);
-      window.history.replaceState(null, "", newUrl);
-    }
-  }, [previousVisibleIndex]);
-
   return (
     <div className="test">
       {articlesArray.map((item, key) => (

@@ -147,7 +147,7 @@ const Test13 = () => {
     };
   }, [previousVisibleIndex, articlesArray, hasMoreArticles]);
 
-  //щбновление url при изменении видимой статьи
+  //обновление url при изменении видимой статьи
   useEffect(() => {
     // console.log(`idArticleVisible changed to: ${idArticleVisible}`);
     if (idArticleVisible) {
@@ -156,6 +156,22 @@ const Test13 = () => {
       window.history.replaceState(null, "", newUrl);
     }
   }, [idArticleVisible]);
+
+  useEffect(() => {
+    // Добавляем обработчик для события "popstate" при монтировании компонента
+    const handlePopstate = () => {
+      // Получаем ID статьи из URL при нажатии на кнопки "назад" и "вперёд" в браузере
+      const newId = getIdFromUrl();
+      setIdArticleVisible(newId);
+    };
+
+    window.addEventListener("popstate", handlePopstate);
+
+    // Убираем обработчик при размонтировании компонента
+    return () => {
+      window.removeEventListener("popstate", handlePopstate);
+    };
+  }, []);
 
   return (
     <div className="test">
