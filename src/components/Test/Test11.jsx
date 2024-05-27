@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./test.scss";
 import Article from "../Article/Article";
 
@@ -29,8 +29,13 @@ const Test11 = () => {
     const path = window.location.pathname;
     const pathParts = path.split("/");
     const id = parseInt(pathParts[pathParts.length - 1], 10);
+
+    if (!isNaN(id)) {
+      return id;
+    }
+
     const savedId = localStorage.getItem("idArticleVisible");
-    return savedId ? parseInt(savedId, 10) : isNaN(id) ? 1 : id;
+    return savedId ? parseInt(savedId, 10) : 1;
   };
 
   //Функция для запроса статьи по ID
@@ -154,6 +159,16 @@ const Test11 = () => {
       fetchNextArticle();
     }
   }, [idArticleVisible, articlesArray.length, hasMoreArticles]);
+
+  // изменение URL при изменении видимой статьи
+  useLayoutEffect(() => {
+    console.log(`idArticleVisible changed to: ${idArticleVisible}`);
+    if (idArticleVisible !== null) {
+      const newUrl = `/page/test/${idArticleVisible}`;
+      console.log(`Updating URL to: ${newUrl}`);
+      window.history.replaceState(null, "", newUrl);
+    }
+  }, [previousVisibleIndex]);
 
   return (
     <div className="test">
