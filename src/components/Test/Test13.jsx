@@ -4,18 +4,28 @@ import "./test.scss";
 import Article from "../Article/Article";
 
 const Test13 = () => {
+  //массив статей
   const [articlesArray, setArticlesArray] = useState([]);
+  //текущая страница
   const [currentPage, setCurrentPage] = useState(1);
+  // id теущей видимой статьи
   const [idArticleVisible, setIdArticleVisible] = useState(null);
-  const [errorCount, setErrorCount] = useState(0);
-  const [hasMoreArticles, setHasMoreArticles] = useState(true);
-  const itemsRef = useRef([]);
+  //предыдущий индекс видимой статьи
   const [previousVisibleIndex, setPreviousVisibleIndex] = useState(null);
+  //количество неудачных запросов
+  const [errorCount, setErrorCount] = useState(0);
+  ////Флаг, чтобы прекратить слать запросы после 100 неудачных попыток
+  const [hasMoreArticles, setHasMoreArticles] = useState(true);
 
+  // Ссылки на статьи в DOM дереве
+  const itemsRef = useRef([]);
+
+  // Функция для обновления itemsRef, которая сохраняет ссылку на DOM элемент статьи.
   const updateItemsRef = (index) => (element) => {
     itemsRef.current[index] = element;
   };
 
+  //Извлечение ID статьи из URL и, если доступно, возвращение ID из localStorage.
   const getIdFromUrl = () => {
     const path = window.location.pathname;
     const pathParts = path.split("/");
@@ -29,9 +39,9 @@ const Test13 = () => {
     return savedId ? parseInt(savedId, 10) : 1;
   };
 
+  //Функция для запроса статьи по ID
   const fetchArticleById = async (id) => {
     try {
-      console.log(`Fetching article with ID: ${id}`);
       const response = await axios.get(
         `https://jsonplaceholder.typicode.com/posts/${id}`
       );
@@ -41,16 +51,17 @@ const Test13 = () => {
     }
   };
 
+  // Загрузка начальной статьи, и установка текущего состояния.
   const loadInitialArticle = async (initialId) => {
-    console.log(`Loading initial article with ID: ${initialId}`);
+    // console.log(`Loading initial article with ID: ${initialId}`);
     const article = await fetchArticleById(initialId);
     setArticlesArray([article]);
     setCurrentPage(initialId + 1);
   };
 
+  // Функция для запроса следующей статьи:
   const fetchNextArticle = async () => {
     if (!hasMoreArticles) {
-      console.log("No more articles to fetch.");
       return;
     }
     let success = false;
@@ -58,6 +69,7 @@ const Test13 = () => {
     let nextPage = currentPage;
     let localErrorCount = errorCount;
 
+    // Повторяем попытки запроса, пока не достигнем 100 неудачных попыток или не получим успешный ответ
     while (!success && localErrorCount < 100) {
       try {
         nextArticle = await fetchArticleById(nextPage);
@@ -66,9 +78,6 @@ const Test13 = () => {
         nextPage += 1;
         localErrorCount += 1;
         if (localErrorCount >= 100) {
-          console.log(
-            "Reached 100 failed attempts, stopping further requests."
-          );
           setHasMoreArticles(false);
           setErrorCount(localErrorCount);
           return;
@@ -76,6 +85,7 @@ const Test13 = () => {
       }
     }
 
+    // Если запрос успешен, обновляем состояние с новой статьей
     if (success && nextArticle) {
       setArticlesArray((prevArticles) => [...prevArticles, nextArticle]);
       setCurrentPage(nextPage + 1);
@@ -85,13 +95,15 @@ const Test13 = () => {
     }
   };
 
+  //Загрузка начальной статьи
   useEffect(() => {
     const initialId = getIdFromUrl();
-    console.log("Initial ID from URL or localStorage:", initialId);
+    // console.log("Initial ID from URL or localStorage:", initialId);
     setIdArticleVisible(initialId);
     loadInitialArticle(initialId);
   }, []);
 
+  //Скролл и обновление видимой статьи
   useEffect(() => {
     const handleScroll = () => {
       const visibleArticleIndex = itemsRef.current.findIndex((item, index) => {
@@ -105,17 +117,21 @@ const Test13 = () => {
         return false;
       });
 
+      // Если видимая статья изменилась, обновляем состояние и записываем в localStorage
       if (
         visibleArticleIndex !== -1 &&
         visibleArticleIndex !== previousVisibleIndex
       ) {
-        console.log(`Visible article index: ${visibleArticleIndex}`);
+        // console.log(`Visible article index: ${visibleArticleIndex}`);
         setPreviousVisibleIndex(visibleArticleIndex);
         const newVisibleId = articlesArray[visibleArticleIndex]?.id;
+
         if (newVisibleId) {
           setIdArticleVisible(newVisibleId);
           localStorage.setItem("idArticleVisible", newVisibleId);
         }
+
+        // Если текущая видимая статья последняя в массиве и есть еще статьи для загрузки, делаем запрос на следующую статью
         if (
           visibleArticleIndex === articlesArray.length - 1 &&
           hasMoreArticles
@@ -131,11 +147,12 @@ const Test13 = () => {
     };
   }, [previousVisibleIndex, articlesArray, hasMoreArticles]);
 
+  //щбновление url при изменении видимой статьи
   useEffect(() => {
-    console.log(`idArticleVisible changed to: ${idArticleVisible}`);
+    // console.log(`idArticleVisible changed to: ${idArticleVisible}`);
     if (idArticleVisible) {
       const newUrl = `/page/test/${idArticleVisible}`;
-      console.log(`Updating URL to: ${newUrl}`);
+      //   console.log(`Updating URL to: ${newUrl}`);
       window.history.replaceState(null, "", newUrl);
     }
   }, [idArticleVisible]);
