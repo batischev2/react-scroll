@@ -1,17 +1,18 @@
 import axios from "axios";
 import React, { useEffect, useRef, useState } from "react";
 import "./test.scss";
+import Article from "../Article/Article";
 import Article2 from "../Article/Article2";
 
-const Test15 = () => {
+const Test14 = () => {
   const [articlesArray, setArticlesArray] = useState([]);
-  const [buffer, setBuffer] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(0); // start from 0 to match index
   const [idArticleVisible, setIdArticleVisible] = useState(null);
   const [previousVisibleIndex, setPreviousVisibleIndex] = useState(null);
   const [errorCount, setErrorCount] = useState(0);
   const [hasMoreArticles, setHasMoreArticles] = useState(true);
   const itemsRef = useRef([]);
+  const [permalinks, setPermalinks] = useState([]);
 
   const updateItemsRef = (index) => (element) => {
     itemsRef.current[index] = element;
@@ -30,37 +31,37 @@ const Test15 = () => {
     return savedId ? parseInt(savedId, 10) : 1;
   };
 
-  const fetchArticles = async (page) => {
+  const fetchArticleByUrl = async (url) => {
     try {
-      const url =
-        page === 1
-          ? "https://169f-92-242-112-164.ngrok-free.app/wp-json/api-posts/v1/endlessPosts?permalink=http://pamtest.ru/702-oformlenie-osago-na-a-b-c-d-otkryto-vsem-agenta/"
-          : "https://169f-92-242-112-164.ngrok-free.app/wp-json/api-posts/v1/endlessPosts";
-
+      console.log(`Fetching article by URL: ${url}`);
       const response = await axios.get(url);
+      console.log("Article fetched successfully:", response.data);
       return response.data;
     } catch (error) {
+      console.error("Error fetching article by URL:", error);
       throw error;
     }
   };
 
-  const fetchArticleById = async (id) => {
+  const loadInitialArticle = async (initialId) => {
     try {
+      console.log(`Loading initial article with ID: ${initialId}`);
       const response = await axios.get(
-        `https://jsonplaceholder.typicode.com/posts/${id}`
+        `https://169f-92-242-112-164.ngrok-free.app/wp-json/api-posts/v1/endlessPosts?permalink=http://pamtest.ru/${initialId}-oformlenie-osago-na-a-b-c-d-otkryto-vsem-agenta/`
       );
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  };
+      console.log(
+        "Initial article and permalinks fetched successfully:",
+        response.data
+      );
 
-  const loadInitialArticles = async (initialId) => {
-    try {
-      const articles = await fetchArticles(1);
-      setBuffer(articles.slice(1)); // Сохраняем остальные статьи в буфер
-      setArticlesArray([articles[0]]); // Устанавливаем первую статью
-      setCurrentPage(initialId + 1);
+      const initialArticle = response.data[0]["requested-post"];
+      const fetchedPermalinks = response.data
+        .slice(1)
+        .map((item) => item.permalink);
+
+      setArticlesArray([initialArticle]);
+      setPermalinks(fetchedPermalinks);
+      setCurrentPage(0);
       setIdArticleVisible(initialId);
       window.history.replaceState(
         { id: initialId },
@@ -68,50 +69,57 @@ const Test15 = () => {
         `/page/test/${initialId}`
       );
     } catch (error) {
-      console.error("Failed to load initial articles:", error);
+      console.error("Error loading initial article:", error);
     }
   };
 
   const fetchNextArticle = async () => {
-    if (!hasMoreArticles) {
+    if (!hasMoreArticles || !permalinks[currentPage + 1]) {
+      console.log(
+        "No more articles to fetch or no permalink available for the current page."
+      );
       return;
     }
 
-    if (buffer.length === 0) {
-      let success = false;
-      let localErrorCount = errorCount;
+    let success = false;
+    let nextArticle = null;
+    let nextPage = currentPage + 1;
+    let localErrorCount = errorCount;
 
-      while (!success && localErrorCount < 100) {
-        try {
-          const newArticles = await fetchArticles(currentPage);
-          if (newArticles.length === 0) {
-            setHasMoreArticles(false);
-            return;
-          }
-          setBuffer(newArticles);
-          setCurrentPage(currentPage + 1);
-          success = true;
-        } catch (error) {
-          localErrorCount += 1;
-          if (localErrorCount >= 100) {
-            setHasMoreArticles(false);
-            setErrorCount(localErrorCount);
-            return;
-          }
+    while (!success && localErrorCount < 100) {
+      try {
+        console.log(
+          `Fetching next article from permalink: ${permalinks[nextPage]}`
+        );
+        nextArticle = await fetchArticleByUrl(permalinks[nextPage]);
+        success = true;
+      } catch (error) {
+        nextPage += 1;
+        localErrorCount += 1;
+        if (localErrorCount >= 100) {
+          setHasMoreArticles(false);
+          setErrorCount(localErrorCount);
+          return;
         }
       }
-
-      setErrorCount(success ? 0 : localErrorCount);
     }
 
-    const nextArticle = buffer.shift(); // Берем первую статью из буфера
-    setArticlesArray((prevArticles) => [...prevArticles, nextArticle]);
-    setBuffer(buffer); // Обновляем буфер
+    if (success && nextArticle) {
+      setArticlesArray((prevArticles) => [
+        ...prevArticles,
+        nextArticle["requested-post"],
+      ]);
+      setCurrentPage(nextPage);
+      setErrorCount(0);
+      console.log("Next article fetched and added to articles array.");
+    } else {
+      setErrorCount(localErrorCount);
+    }
   };
 
   useEffect(() => {
     const initialId = getIdFromUrl();
-    loadInitialArticles(initialId);
+    loadInitialArticle(initialId);
   }, []);
 
   useEffect(() => {
@@ -157,7 +165,7 @@ const Test15 = () => {
     return () => {
       document.removeEventListener("scroll", handleScroll);
     };
-  }, [previousVisibleIndex, articlesArray, hasMoreArticles]);
+  }, [previousVisibleIndex, articlesArray, hasMoreArticles, currentPage]);
 
   useEffect(() => {
     const handlePopstate = async (event) => {
@@ -165,8 +173,11 @@ const Test15 = () => {
       setIdArticleVisible(newId);
       if (articlesArray.length < newId) {
         for (let i = articlesArray.length + 1; i <= newId; i++) {
-          const article = await fetchArticleById(i);
-          setArticlesArray((prevArticles) => [...prevArticles, article]);
+          const article = await fetchArticleByUrl(permalinks[i - 1]);
+          setArticlesArray((prevArticles) => [
+            ...prevArticles,
+            article["requested-post"],
+          ]);
         }
       }
     };
@@ -176,7 +187,7 @@ const Test15 = () => {
     return () => {
       window.removeEventListener("popstate", handlePopstate);
     };
-  }, []);
+  }, [permalinks, articlesArray]);
 
   return (
     <div className="test">
@@ -191,4 +202,4 @@ const Test15 = () => {
   );
 };
 
-export default Test15;
+export default Test14;

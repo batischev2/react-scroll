@@ -24,7 +24,7 @@ code {
 }
 
 .container{
-  /* width: 1440px; */
+  width: 1440px;
   margin: 0 auto;
   overflow-x: hidden;
 }
@@ -35,4 +35,10 @@ code {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+@media(max-width: 1441px){
+  .container{
+    width: 100%;
+  }
 }

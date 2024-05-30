@@ -1,13 +1,13 @@
-import Test13 from "./components/Test/Test13";
 import Test14 from "./components/Test/Test14";
-import Test15 from "./components/Test/Test15";
+import Test17 from "./components/Test/Test17";
+import Test18 from "./components/Test/Test18";
 
 function App() {
   return (
     <div className="container">
-      {/* <Test13 /> */}
       {/* <Test14 /> */}
-      <Test15 />
+      {/* <Test17 /> */}
+      <Test18 />
     </div>
   );
 }
