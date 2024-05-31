@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import "./test.scss";
 import Article2 from "../Article/Article2";
 
-const Test19 = () => {
+const Test20 = () => {
   const [articlesArray, setArticlesArray] = useState([]);
   const [permalinks, setPermalinks] = useState([]);
   const itemsRef = useRef([]);
@@ -11,6 +11,7 @@ const Test19 = () => {
   const currentPageRef = useRef(0);
   const currentPagedRef = useRef(1);
   const lastPermalinkRef = useRef("");
+  const stopFetchingRef = useRef(false); // Добавлено для остановки запросов
 
   const updateItemsRef = (index) => (element) => {
     itemsRef.current[index] = element;
@@ -47,13 +48,14 @@ const Test19 = () => {
       currentPagedRef.current = 1;
       lastPermalinkRef.current =
         fetchedPermalinks[fetchedPermalinks.length - 1];
+      stopFetchingRef.current = false; // Сброс остановки запросов
     } catch (error) {
       console.error("Error loading initial article:", error);
     }
   };
 
   const fetchNextArticle = async () => {
-    if (isFetchingRef.current) {
+    if (isFetchingRef.current || stopFetchingRef.current) {
       return;
     }
 
@@ -79,11 +81,20 @@ const Test19 = () => {
       const newPermalinks = response.slice(1).map((item) => item.permalink);
 
       setArticlesArray((prevArticles) => [...prevArticles, nextArticle]);
-      if (currentPageRef.current < permalinks.length) {
-        currentPageRef.current += 1;
+
+      if (
+        newPermalinks.length === 0 ||
+        (response.length === 1 && !newPermalinks.length)
+      ) {
+        stopFetchingRef.current = true; // Остановка запросов
       } else {
-        setPermalinks(newPermalinks);
-        currentPageRef.current = 0;
+        if (currentPageRef.current < permalinks.length) {
+          currentPageRef.current += 1;
+        } else {
+          setPermalinks(newPermalinks);
+          currentPageRef.current = 0;
+          lastPermalinkRef.current = newPermalinks[newPermalinks.length - 1];
+        }
       }
     } catch (error) {
       console.error(`Error fetching next article:`, error);
@@ -131,4 +142,4 @@ const Test19 = () => {
   );
 };
 
-export default Test19;
+export default Test20;
