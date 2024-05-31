@@ -3,15 +3,16 @@ import React, { useEffect, useRef, useState } from "react";
 import "./test.scss";
 import Article2 from "../Article/Article2";
 
-const Test20 = () => {
+const Test19 = () => {
   const [articlesArray, setArticlesArray] = useState([]);
   const [permalinks, setPermalinks] = useState([]);
+  const [previousVisibleIndex, setPreviousVisibleIndex] = useState(null);
   const itemsRef = useRef([]);
   const isFetchingRef = useRef(false);
   const currentPageRef = useRef(0);
   const currentPagedRef = useRef(1);
   const lastPermalinkRef = useRef("");
-  const stopFetchingRef = useRef(false); // Добавлено для остановки запросов
+  const stopFetchingRef = useRef(false);
 
   const updateItemsRef = (index) => (element) => {
     itemsRef.current[index] = element;
@@ -48,7 +49,7 @@ const Test20 = () => {
       currentPagedRef.current = 1;
       lastPermalinkRef.current =
         fetchedPermalinks[fetchedPermalinks.length - 1];
-      stopFetchingRef.current = false; // Сброс остановки запросов
+      stopFetchingRef.current = false;
     } catch (error) {
       console.error("Error loading initial article:", error);
     }
@@ -86,7 +87,7 @@ const Test20 = () => {
         newPermalinks.length === 0 ||
         (response.length === 1 && !newPermalinks.length)
       ) {
-        stopFetchingRef.current = true; // Остановка запросов
+        stopFetchingRef.current = true;
       } else {
         if (currentPageRef.current < permalinks.length) {
           currentPageRef.current += 1;
@@ -109,25 +110,44 @@ const Test20 = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      const windowHeight = window.innerHeight;
-
-      itemsRef.current.forEach((item, index) => {
+      const visibleArticleIndex = itemsRef.current.findIndex((item, index) => {
         if (item) {
           const rect = item.getBoundingClientRect();
-          if (rect.top < windowHeight && rect.bottom >= windowHeight / 2) {
-            if (index === articlesArray.length - 1) {
-              fetchNextArticle();
-            }
-          }
+          return (
+            rect.top < window.innerHeight &&
+            rect.bottom >= window.innerHeight / 2
+          );
         }
+        return false;
       });
+
+      if (
+        visibleArticleIndex !== -1 &&
+        visibleArticleIndex !== previousVisibleIndex
+      ) {
+        setPreviousVisibleIndex(visibleArticleIndex);
+        const newVisibleArticle = articlesArray[visibleArticleIndex];
+
+        if (newVisibleArticle && newVisibleArticle.post_title) {
+          const articleTitle = newVisibleArticle.post_title;
+          const encodedTitle = encodeURIComponent(articleTitle);
+          window.history.replaceState(null, "", `?article=${encodedTitle}`);
+        }
+
+        if (
+          visibleArticleIndex === articlesArray.length - 1 &&
+          !stopFetchingRef.current
+        ) {
+          fetchNextArticle();
+        }
+      }
     };
 
     window.addEventListener("scroll", handleScroll);
     return () => {
       window.removeEventListener("scroll", handleScroll);
     };
-  }, [articlesArray]);
+  }, [previousVisibleIndex, articlesArray]);
 
   return (
     <div className="test">
@@ -142,4 +162,4 @@ const Test20 = () => {
   );
 };
 
-export default Test20;
+export default Test19;

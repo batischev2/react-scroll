@@ -1,5 +1,5 @@
 import Test14 from "./components/Test/Test14";
-import Test20 from "./components/Test/Test20";
+import Test19 from "./components/Test/Test19";
 
 function App() {
   return (
@@ -7,7 +7,7 @@ function App() {
       {/* версия со старым беком */}
       {/* <Test14 /> */}
       {/* рабочая версия */}
-      <Test20 />
+      <Test19 />
     </div>
   );
 }
