@@ -5,10 +5,10 @@ import Article2 from "../Article/Article2";
 
 const Test18 = () => {
   const [articlesArray, setArticlesArray] = useState([]);
-  const [currentPage, setCurrentPage] = useState(0);
   const [permalinks, setPermalinks] = useState([]);
   const itemsRef = useRef([]);
   const isFetchingRef = useRef(false);
+  const currentPageRef = useRef(0);
 
   const updateItemsRef = (index) => (element) => {
     itemsRef.current[index] = element;
@@ -25,33 +25,42 @@ const Test18 = () => {
     const initialPermalink =
       "http://pamtest.ru/702-oformlenie-osago-na-a-b-c-d-otkryto-vsem-agenta/";
     const apiUrl = `https://169f-92-242-112-164.ngrok-free.app/wp-json/api-posts/v1/endlessPosts?permalink=${initialPermalink}`;
-    const response = await axios.get(apiUrl);
+    try {
+      const response = await axios.get(apiUrl);
+      const initialArticle = response.data[0]["requested-post"];
+      const fetchedPermalinks = response.data
+        .slice(1)
+        .map((item) => item.permalink);
 
-    const initialArticle = response.data[0]["requested-post"];
-    const fetchedPermalinks = response.data
-      .slice(1)
-      .map((item) => item.permalink);
-
-    setArticlesArray([initialArticle]);
-    setPermalinks(fetchedPermalinks);
-    setCurrentPage(0);
+      setArticlesArray([initialArticle]);
+      setPermalinks(fetchedPermalinks);
+      currentPageRef.current = 0;
+    } catch (error) {
+      console.error("Error loading initial article:", error);
+    }
   };
 
   const fetchNextArticle = async () => {
-    const nextPage = currentPage + 1;
-
-    if (!permalinks[nextPage] || isFetchingRef.current) {
+    if (isFetchingRef.current || currentPageRef.current >= permalinks.length) {
       return;
     }
 
     isFetchingRef.current = true;
-    const nextPermalink = permalinks[nextPage];
-    const response = await fetchArticleByPermalink(nextPermalink);
-    const nextArticle = response[0]["requested-post"];
 
-    setArticlesArray((prevArticles) => [...prevArticles, nextArticle]);
-    setCurrentPage(nextPage);
-    isFetchingRef.current = false;
+    const nextPage = currentPageRef.current;
+    const nextPermalink = permalinks[nextPage];
+
+    try {
+      const response = await fetchArticleByPermalink(nextPermalink);
+      const nextArticle = response[0]["requested-post"];
+
+      setArticlesArray((prevArticles) => [...prevArticles, nextArticle]);
+      currentPageRef.current += 1;
+    } catch (error) {
+      console.error(`Error fetching next article:`, error);
+    } finally {
+      isFetchingRef.current = false;
+    }
   };
 
   useEffect(() => {
@@ -60,30 +69,25 @@ const Test18 = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      const visibleArticleIndex = itemsRef.current.findIndex((item) => {
+      const windowHeight = window.innerHeight;
+
+      itemsRef.current.forEach((item, index) => {
         if (item) {
           const rect = item.getBoundingClientRect();
-          return (
-            rect.top < window.innerHeight &&
-            rect.bottom >= window.innerHeight / 2
-          );
+          if (rect.top < windowHeight && rect.bottom >= windowHeight / 2) {
+            if (index === articlesArray.length - 1) {
+              fetchNextArticle();
+            }
+          }
         }
-        return false;
       });
-
-      if (
-        visibleArticleIndex === articlesArray.length - 1 &&
-        !isFetchingRef.current
-      ) {
-        fetchNextArticle();
-      }
     };
 
-    document.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll);
     return () => {
-      document.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("scroll", handleScroll);
     };
-  }, [articlesArray, permalinks, currentPage]);
+  }, [articlesArray]);
 
   return (
     <div className="test">
