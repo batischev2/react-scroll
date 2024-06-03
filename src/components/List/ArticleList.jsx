@@ -28,12 +28,6 @@ const ArticleList = () => {
     return response.data
   }
 
-  const fetchArticleByPermalinkAndPage = async (permalink, page) => {
-    const apiUrl = `${process.env.REACT_APP_BASE_URL}?permalink=${permalink}&paged=${page}`
-    const response = await axios.get(apiUrl)
-    return response.data
-  }
-
   // загрузка начальной статьи, и установка текущего состояния
   const loadInitialArticle = async () => {
     try {
@@ -71,12 +65,7 @@ const ArticleList = () => {
         nextPermalink = lastPermalinkRef.current
       }
 
-      const response = await (currentPageRef.current < permalinks.length
-        ? fetchArticleByPermalink(nextPermalink)
-        : fetchArticleByPermalinkAndPage(
-            nextPermalink,
-            currentPagedRef.current
-          ))
+      const response = await fetchArticleByPermalink(nextPermalink)
 
       const nextArticle = response[0]['requested-post']
       const newPermalinks = response.slice(1).map((item) => item.permalink)
@@ -156,7 +145,7 @@ const ArticleList = () => {
   return (
     <div className='test'>
       {articlesArray.map((item, key) => (
-        <Article2
+        <Article
           article={item}
           key={item.id}
           articleRef={updateItemsRef(key)}
