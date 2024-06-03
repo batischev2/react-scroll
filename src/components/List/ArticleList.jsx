@@ -1,41 +1,43 @@
 import axios from 'axios'
 import React, { useEffect, useRef, useState } from 'react'
 import './articleList.scss'
-import Article2 from '../Article/Article2'
+import Article from '../Article/Article'
 
-const Test19 = () => {
+const ArticleList = () => {
+  // массив статей
   const [articlesArray, setArticlesArray] = useState([])
   const [permalinks, setPermalinks] = useState([])
   const [previousVisibleIndex, setPreviousVisibleIndex] = useState(null)
+  // ссылки на статьи в DOM дереве
   const itemsRef = useRef([])
   const isFetchingRef = useRef(false)
+  // текущая страница
   const currentPageRef = useRef(0)
   const currentPagedRef = useRef(1)
   const lastPermalinkRef = useRef('')
   const stopFetchingRef = useRef(false)
 
+  // функция для обновления itemsRef, которая сохраняет ссылку на DOM элемент статьи.
   const updateItemsRef = (index) => (element) => {
     itemsRef.current[index] = element
   }
 
   const fetchArticleByPermalink = async (permalink) => {
-    const apiUrl = `https://6c21-193-110-75-164.ngrok-free.app/wp-json/api-posts/v1/endlessPosts?permalink=${permalink}`
+    const apiUrl = `${process.env.REACT_APP_BASE_URL}?permalink=${permalink}`
     const response = await axios.get(apiUrl)
     return response.data
   }
 
   const fetchArticleByPermalinkAndPage = async (permalink, page) => {
-    const apiUrl = `https://6c21-193-110-75-164.ngrok-free.app/wp-json/api-posts/v1/endlessPosts?permalink=${permalink}&paged=${page}`
+    const apiUrl = `${process.env.REACT_APP_BASE_URL}?permalink=${permalink}&paged=${page}`
     const response = await axios.get(apiUrl)
     return response.data
   }
 
+  // загрузка начальной статьи, и установка текущего состояния
   const loadInitialArticle = async () => {
-    const initialPermalink =
-      'http://pamtest.ru/702-oformlenie-osago-na-a-b-c-d-otkryto-vsem-agenta/'
-    const apiUrl = `https://6c21-193-110-75-164.ngrok-free.app/wp-json/api-posts/v1/endlessPosts?permalink=${initialPermalink}`
     try {
-      const response = await axios.get(apiUrl)
+      const response = await axios.get(process.env.REACT_APP_BASE_URL)
       const initialArticle = response.data[0]['requested-post']
       const fetchedPermalinks = response.data
         .slice(1)
@@ -52,6 +54,7 @@ const Test19 = () => {
     }
   }
 
+  // функция для запроса следующей статьи
   const fetchNextArticle = async () => {
     if (isFetchingRef.current || stopFetchingRef.current) {
       return
@@ -101,10 +104,12 @@ const Test19 = () => {
     }
   }
 
+  // загрузка начальной статьи
   useEffect(() => {
     loadInitialArticle()
   }, [])
 
+  // скролл и обновление видимой статьи
   useEffect(() => {
     const handleScroll = () => {
       const visibleArticleIndex = itemsRef.current.findIndex((item, index) => {
@@ -118,6 +123,7 @@ const Test19 = () => {
         return false
       })
 
+      // если видимая статья изменилась, обновляем состояние и записываем в localStorage
       if (
         visibleArticleIndex !== -1 &&
         visibleArticleIndex !== previousVisibleIndex
@@ -131,6 +137,7 @@ const Test19 = () => {
           window.history.replaceState(null, '', `?article=${encodedTitle}`)
         }
 
+        // если текущая видимая статья последняя в массиве и есть еще статьи для загрузки, делаем запрос на следующую статью
         if (
           visibleArticleIndex === articlesArray.length - 1 &&
           !stopFetchingRef.current
@@ -159,4 +166,4 @@ const Test19 = () => {
   )
 }
 
-export default Test19
+export default ArticleList
