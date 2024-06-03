@@ -13,7 +13,6 @@ const ArticleList = () => {
   const isFetchingRef = useRef(false)
   // текущая страница
   const currentPageRef = useRef(0)
-  const currentPagedRef = useRef(1)
   const lastPermalinkRef = useRef('')
   const stopFetchingRef = useRef(false)
 
@@ -36,11 +35,9 @@ const ArticleList = () => {
       const fetchedPermalinks = response.data
         .slice(1)
         .map((item) => item.permalink)
-
       setArticlesArray([initialArticle])
       setPermalinks(fetchedPermalinks)
       currentPageRef.current = 0
-      currentPagedRef.current = 1
       lastPermalinkRef.current = fetchedPermalinks[fetchedPermalinks.length - 1]
       stopFetchingRef.current = false
     } catch (error) {
@@ -61,7 +58,6 @@ const ArticleList = () => {
       if (currentPageRef.current < permalinks.length) {
         nextPermalink = permalinks[currentPageRef.current]
       } else {
-        currentPagedRef.current += 1
         nextPermalink = lastPermalinkRef.current
       }
 
