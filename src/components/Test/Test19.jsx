@@ -19,14 +19,14 @@ const Test19 = () => {
   };
 
   const fetchArticleByPermalink = async (permalink) => {
-    const apiUrl = `https://169f-92-242-112-164.ngrok-free.app/wp-json/api-posts/v1/endlessPosts?permalink=${permalink}`;
+    const apiUrl = `https://6c21-193-110-75-164.ngrok-free.app/wp-json/api-posts/v1/endlessPosts?permalink=${permalink}`;
     console.log(`Fetching article by permalink: ${apiUrl}`);
     const response = await axios.get(apiUrl);
     return response.data;
   };
 
   const fetchArticleByPermalinkAndPage = async (permalink, page) => {
-    const apiUrl = `https://169f-92-242-112-164.ngrok-free.app/wp-json/api-posts/v1/endlessPosts?permalink=${permalink}&paged=${page}`;
+    const apiUrl = `https://6c21-193-110-75-164.ngrok-free.app/wp-json/api-posts/v1/endlessPosts?permalink=${permalink}&paged=${page}`;
     console.log(`Fetching article by permalink and page: ${apiUrl}`);
     const response = await axios.get(apiUrl);
     return response.data;
@@ -35,7 +35,7 @@ const Test19 = () => {
   const loadInitialArticle = async () => {
     const initialPermalink =
       "http://pamtest.ru/702-oformlenie-osago-na-a-b-c-d-otkryto-vsem-agenta/";
-    const apiUrl = `https://169f-92-242-112-164.ngrok-free.app/wp-json/api-posts/v1/endlessPosts?permalink=${initialPermalink}`;
+    const apiUrl = `https://6c21-193-110-75-164.ngrok-free.app/wp-json/api-posts/v1/endlessPosts?permalink=${initialPermalink}`;
     try {
       const response = await axios.get(apiUrl);
       const initialArticle = response.data[0]["requested-post"];
