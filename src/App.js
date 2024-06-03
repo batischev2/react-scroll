@@ -1,10 +1,9 @@
-import Test14 from "./components/Test/Test14";
-import Test19 from "./components/Test/Test19";
+import ArticleList from "./components/List/ArticleList";
 
 function App() {
   return (
     <div className="container">
-      <Test19 />
+      <ArticleList />
     </div>
   );
 }

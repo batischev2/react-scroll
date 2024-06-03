@@ -1,6 +1,6 @@
-import React from "react";
-import "./article.scss";
-import mock from "../../assets/image/67ba400c9648dd03c33976d6c69dd83d.jpg";
+import React from 'react'
+import './article.scss'
+import mock from '../../assets/image/67ba400c9648dd03c33976d6c69dd83d.jpg'
 
 // const Article2 = ({ article, articleRef }) => {
 //   return (
@@ -22,10 +22,9 @@ import mock from "../../assets/image/67ba400c9648dd03c33976d6c69dd83d.jpg";
 // export default Article2;
 
 const Article2 = ({ article, articleRef }) => {
-  console.log("Rendering article:", article);
   return (
-    <article className="article" ref={articleRef}>
-      <div className="article-top">
+    <article className='article' ref={articleRef}>
+      <div className='article-top'>
         <h1>{article.post_title}</h1>
         <span>
           Дата публикации:{new Date(article.post_date).toLocaleDateString()}
@@ -36,11 +35,11 @@ const Article2 = ({ article, articleRef }) => {
         </div> */}
       </div>
       <div
-        className="article-body"
+        className='article-body'
         dangerouslySetInnerHTML={{ __html: article.post_content }}
       />
     </article>
-  );
-};
+  )
+}
 
-export default Article2;
+export default Article2
