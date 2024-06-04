@@ -23,6 +23,7 @@ const ArticleList = () => {
   }
 
   const fetchArticleByPermalink = async (permalink, page) => {
+    if (!permalink) return
     const apiUrl = `${process.env.REACT_APP_BASE_URL}?permalink=${permalink}&paged=${page}`
     const response = await axios.get(apiUrl)
     return response.data
@@ -32,11 +33,7 @@ const ArticleList = () => {
   const loadInitialArticle = async () => {
     try {
       const response = await axios.get(process.env.REACT_APP_BASE_URL)
-      const initialArticle = response.data[0]['requested-post']
-      const fetchedPermalinks = response.data
-        .slice(1)
-        .map((item) => item.permalink)
-      setArticlesArray([initialArticle])
+      const fetchedPermalinks = response.data.slice(1).map((item) => item.permalink)
       setPermalinks(fetchedPermalinks)
       currentPageRef.current = 0
       currentPagedRef.current = 1
@@ -56,7 +53,7 @@ const ArticleList = () => {
     isFetchingRef.current = true
 
     try {
-      let nextPermalink
+      let nextPermalink // нужно ли запрашивать новую страницу
       if (currentPageRef.current < permalinks.length) {
         nextPermalink = permalinks[currentPageRef.current]
       } else {
@@ -66,15 +63,14 @@ const ArticleList = () => {
 
       const response = await fetchArticleByPermalink(nextPermalink, currentPagedRef.current)
 
+      if (!response) return
+
       const nextArticle = response[0]['requested-post']
       const newPermalinks = response.slice(1).map((item) => item.permalink)
 
       setArticlesArray((prevArticles) => [...prevArticles, nextArticle])
 
-      if (
-        newPermalinks.length === 0 ||
-        (response.length === 1 && !newPermalinks.length)
-      ) {
+      if (newPermalinks.length === 0 || (response.length === 1 && !newPermalinks.length)) {
         stopFetchingRef.current = true
       } else {
         if (currentPageRef.current < permalinks.length) {
@@ -97,25 +93,34 @@ const ArticleList = () => {
     loadInitialArticle()
   }, [])
 
+  // при получении нового массива permalinks запрашиваем новую статью
+  useEffect(() => {
+    if (permalinks) {
+      fetchNextArticle()
+    }
+  }, [permalinks])
+
   // скролл и обновление видимой статьи
   useEffect(() => {
     const handleScroll = () => {
-      const visibleArticleIndex = itemsRef.current.findIndex((item, index) => {
+      const visibleArticleIndex = itemsRef.current.findIndex((item) => {
         if (item) {
           const rect = item.getBoundingClientRect()
-          return (
-            rect.top < window.innerHeight &&
-            rect.bottom >= window.innerHeight / 2
-          )
+          return rect.top < window.innerHeight && rect.bottom >= window.innerHeight / 2
         }
         return false
       })
 
-      // если видимая статья изменилась, обновляем состояние и записываем в localStorage
       if (
-        visibleArticleIndex !== -1 &&
-        visibleArticleIndex !== previousVisibleIndex
+        itemsRef.current[itemsRef.current.length - 1].getBoundingClientRect().height <
+        window.innerHeight <
+        2
       ) {
+        return fetchNextArticle()
+      }
+
+      // если видимая статья изменилась, обновляем состояние и записываем в localStorage
+      if (visibleArticleIndex !== -1 && visibleArticleIndex !== previousVisibleIndex) {
         setPreviousVisibleIndex(visibleArticleIndex)
         const newVisibleArticle = articlesArray[visibleArticleIndex]
 
@@ -126,29 +131,48 @@ const ArticleList = () => {
         }
 
         // если текущая видимая статья последняя в массиве и есть еще статьи для загрузки, делаем запрос на следующую статью
-        if (
-          visibleArticleIndex === articlesArray.length - 1 &&
-          !stopFetchingRef.current
-        ) {
+        if (visibleArticleIndex === articlesArray.length - 1 && !stopFetchingRef.current) {
           fetchNextArticle()
         }
+      }
+
+      // первый скролл, сразу запросим вторую статью
+      if (visibleArticleIndex === -1 && previousVisibleIndex === null) {
+        fetchNextArticle()
       }
     }
 
     window.addEventListener('scroll', handleScroll)
+
     return () => {
       window.removeEventListener('scroll', handleScroll)
     }
   }, [previousVisibleIndex, articlesArray])
 
+  // сохранение предудыщей статьи
+  // useEffect(() => {
+  //   const handlePopState = async (event) => {
+  //     const newId = event.state?.id || getIdFromUrl();
+  //     setIdArticleVisible(newId);
+  //     if (articlesArray.length < newId) {
+  //       for (let i = articlesArray.length + 1; i <= newId; i++) {
+  //         const article = await fetchArticleById(i);
+  //         setArticlesArray((prevArticles) => [...prevArticles, article]);
+  //       }
+  //     }
+  //   };
+
+  //   window.addEventListener("popstate", handlePopState);
+
+  //   return () => {
+  //     window.removeEventListener("popstate", handlePopState);
+  //   };
+  // }, []);
+
   return (
     <div className='test'>
       {articlesArray.map((item, key) => (
-        <Article
-          article={item}
-          key={item.id}
-          articleRef={updateItemsRef(key)}
-        />
+        <Article article={item} key={item.id} articleRef={updateItemsRef(key)} />
       ))}
     </div>
   )
