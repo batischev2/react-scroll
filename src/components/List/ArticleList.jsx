@@ -13,6 +13,7 @@ const ArticleList = () => {
   const isFetchingRef = useRef(false)
   // текущая страница
   const currentPageRef = useRef(0)
+  const currentPagedRef = useRef(1)
   const lastPermalinkRef = useRef('')
   const stopFetchingRef = useRef(false)
 
@@ -21,8 +22,8 @@ const ArticleList = () => {
     itemsRef.current[index] = element
   }
 
-  const fetchArticleByPermalink = async (permalink) => {
-    const apiUrl = `${process.env.REACT_APP_BASE_URL}?permalink=${permalink}`
+  const fetchArticleByPermalink = async (permalink, page) => {
+    const apiUrl = `${process.env.REACT_APP_BASE_URL}?permalink=${permalink}&paged=${page}`
     const response = await axios.get(apiUrl)
     return response.data
   }
@@ -38,6 +39,7 @@ const ArticleList = () => {
       setArticlesArray([initialArticle])
       setPermalinks(fetchedPermalinks)
       currentPageRef.current = 0
+      currentPagedRef.current = 1
       lastPermalinkRef.current = fetchedPermalinks[fetchedPermalinks.length - 1]
       stopFetchingRef.current = false
     } catch (error) {
@@ -58,10 +60,11 @@ const ArticleList = () => {
       if (currentPageRef.current < permalinks.length) {
         nextPermalink = permalinks[currentPageRef.current]
       } else {
+        currentPagedRef.current += 1
         nextPermalink = lastPermalinkRef.current
       }
 
-      const response = await fetchArticleByPermalink(nextPermalink)
+      const response = await fetchArticleByPermalink(nextPermalink, currentPagedRef.current)
 
       const nextArticle = response[0]['requested-post']
       const newPermalinks = response.slice(1).map((item) => item.permalink)
