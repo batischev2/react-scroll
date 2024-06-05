@@ -10,8 +10,6 @@ const ArticleList = () => {
   const [permalinks, setPermalinks] = useState([])
   const [previousVisibleIndex, setPreviousVisibleIndex] = useState(null)
 
-  const [stateAction, setStateAction] = useState(0)
-
   // Ссылки useRef для отслеживания состояния загрузки и управления пагинацией
   const itemsRef = useRef([])
   const isFetchingRef = useRef(false)
@@ -41,12 +39,19 @@ const ArticleList = () => {
   }, [])
 
   // Функция для загрузки первоначального списка статей
-  const loadInitialArticle = async () => {
+  const loadInitialArticle = async (permalink, paged) => {
     try {
-      const response = await axios.get(process.env.REACT_APP_BASE_URL)
+      let requestUrl = `${process.env.REACT_APP_BASE_URL}?paged=${paged || 1}`
+      const response = await axios.get(requestUrl)
       const fetchedPermalinks = response.data.slice(1).map((item) => item.permalink)
       setPermalinks(fetchedPermalinks)
-      // console.log(savedIndex)
+      if (permalink) {
+        // загрузим сразу первую статью из сохраненных
+        requestUrl += `&permalink=${permalink}`
+        const responseArticle = await axios.get(requestUrl)
+        const initialArticle = responseArticle.data[0]['requested-post']
+        setArticlesArray([initialArticle])
+      }
       currentPageRef.current = 0
       currentPagedRef.current = 1
       lastPermalinkRef.current = fetchedPermalinks[fetchedPermalinks.length - 1]
@@ -58,9 +63,7 @@ const ArticleList = () => {
 
   // Функция для загрузки следующей статьи
   const fetchNextArticle = useCallback(async () => {
-    if (isFetchingRef.current || stopFetchingRef.current) {
-      return
-    }
+    if (isFetchingRef.current || stopFetchingRef.current) return
 
     isFetchingRef.current = true
 
@@ -70,6 +73,7 @@ const ArticleList = () => {
         nextPermalink = permalinks[currentPageRef.current]
       } else {
         currentPagedRef.current += 1
+        localStorage.setItem('currentPage', currentPagedRef.current)
         nextPermalink = lastPermalinkRef.current
       }
 
@@ -102,33 +106,20 @@ const ArticleList = () => {
     }
   }, [permalinks, fetchArticleByPermalink])
 
-  // Функция для загрузки сохраненных статей
-  const loadSavedArticles = useCallback(
-    async (startIndex) => {
-      for (let i = 0; i <= startIndex; i++) {
-        await fetchNextArticle()
-      }
-    },
-    [fetchNextArticle]
-  )
-
   // Загрузка первоначального списка статей при монтировании компонента
   useEffect(() => {
-    // const savedIndex = localStorage.getItem('visibleArticleIndex')
-    loadInitialArticle()
+    const savedPermalink = localStorage.getItem('visibleArticle')
+    const currentPage = localStorage.getItem('currentPage')
+    loadInitialArticle(savedPermalink, currentPage)
   }, [])
 
   // Загрузка следующей статьи при изменении постоянных ссылок
   useEffect(() => {
     if (permalinks.length > 0) {
-      const savedIndex = localStorage.getItem('visibleArticleIndex')
-      if (savedIndex !== null) {
-        loadSavedArticles(parseInt(savedIndex, 10))
-      } else {
-        fetchNextArticle()
-      }
+      const savedIndex = localStorage.getItem('visibleArticle')
+      if (!savedIndex) fetchNextArticle()
     }
-  }, [permalinks, fetchNextArticle, loadSavedArticles])
+  }, [permalinks, fetchNextArticle])
 
   // Обработка события прокрутки и обновление видимой статьи
   useEffect(() => {
@@ -144,9 +135,8 @@ const ArticleList = () => {
       if (
         itemsRef.current[itemsRef.current.length - 1]?.getBoundingClientRect().height <
         window.innerHeight
-      ) {
+      )
         fetchNextArticle()
-      }
 
       // Обновление состояния и URL при изменении видимой статьи
       if (visibleArticleIndex !== -1 && visibleArticleIndex !== previousVisibleIndex) {
@@ -157,21 +147,15 @@ const ArticleList = () => {
           const articleTitle = newVisibleArticle.post_title
           const encodedTitle = encodeURIComponent(articleTitle)
           window.history.replaceState(null, '', `?article=${encodedTitle}`)
-          localStorage.setItem('visibleArticleIndex', visibleArticleIndex)
-          const savedIndex = localStorage.getItem('visibleArticleIndex')
-          setStateAction(savedIndex)
-          // console.log('asdasd')
-          //Сохранение в localStorage
+          console.log(permalinks[visibleArticleIndex])
+          localStorage.setItem('visibleArticle', permalinks[visibleArticleIndex])
         }
 
-        if (visibleArticleIndex === articlesArray.length - 1 && !stopFetchingRef.current) {
+        if (visibleArticleIndex === articlesArray.length - 1 && !stopFetchingRef.current)
           fetchNextArticle()
-        }
       }
 
-      if (visibleArticleIndex === -1 && previousVisibleIndex === null) {
-        fetchNextArticle()
-      }
+      if (visibleArticleIndex === -1 && previousVisibleIndex === null) fetchNextArticle()
     }
 
     window.addEventListener('scroll', handleScroll)
@@ -180,31 +164,6 @@ const ArticleList = () => {
       window.removeEventListener('scroll', handleScroll)
     }
   }, [previousVisibleIndex, articlesArray, fetchNextArticle])
-
-  // Прокрутка к сохраненной статье при загрузке страницы
-  // useEffect(() => {
-  //   const savedIndex = localStorage.getItem('visibleArticleIndex')
-  //   if (savedIndex !== null && itemsRef.current[savedIndex]) {
-  //     setActionTest(savedIndex)
-  //     // console.log(stateAction)
-  //     // console.log(stateAction + 1)
-  //   }
-  // }, [articlesArray])
-
-  // useEffect(() => {
-  //   console.log(stateAction)
-  // }, [stateAction])
-
-  // Получаем значение 'visibleArticleIndex' из localStorage при загрузке страницы
-  useEffect(() => {
-    const savedIndex = localStorage.getItem('visibleArticleIndex')
-
-    // Если значение есть в localStorage, устанавливаем его в stateAction
-    if (savedIndex !== null) {
-      setStateAction(savedIndex)
-      localStorage.setItem('visibleArticleIndex', savedIndex)
-    }
-  }, [])
 
   return (
     <div className='test'>
