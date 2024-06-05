@@ -1,40 +1,52 @@
 import axios from 'axios'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import './articleList.scss'
 import Article from '../Article/Article'
 
 const ArticleList = () => {
-  // массив статей
+  // Состояния для хранения массива статей, их постоянных ссылок,
+  // и индекса предыдущей видимой статьи
   const [articlesArray, setArticlesArray] = useState([])
   const [permalinks, setPermalinks] = useState([])
   const [previousVisibleIndex, setPreviousVisibleIndex] = useState(null)
-  // ссылки на статьи в DOM дереве
+
+  const [stateAction, setStateAction] = useState(0)
+
+  // Ссылки useRef для отслеживания состояния загрузки и управления пагинацией
   const itemsRef = useRef([])
   const isFetchingRef = useRef(false)
-  // текущая страница
   const currentPageRef = useRef(0)
   const currentPagedRef = useRef(1)
   const lastPermalinkRef = useRef('')
   const stopFetchingRef = useRef(false)
 
-  // функция для обновления itemsRef, которая сохраняет ссылку на DOM элемент статьи.
-  const updateItemsRef = (index) => (element) => {
-    itemsRef.current[index] = element
-  }
+  // useCallback для обновления ссылки на DOM элемент
+  const updateItemsRef = useCallback(
+    (index) => (element) => {
+      itemsRef.current[index] = element
+    },
+    []
+  )
 
-  const fetchArticleByPermalink = async (permalink, page) => {
+  // Функция для загрузки статьи по ее постоянной ссылке
+  const fetchArticleByPermalink = useCallback(async (permalink, page) => {
     if (!permalink) return
     const apiUrl = `${process.env.REACT_APP_BASE_URL}?permalink=${permalink}&paged=${page}`
-    const response = await axios.get(apiUrl)
-    return response.data
-  }
+    try {
+      const response = await axios.get(apiUrl)
+      return response.data
+    } catch (error) {
+      console.error(`Error fetching article by permalink: ${error}`)
+    }
+  }, [])
 
-  // загрузка начальной статьи, и установка текущего состояния
+  // Функция для загрузки первоначального списка статей
   const loadInitialArticle = async () => {
     try {
       const response = await axios.get(process.env.REACT_APP_BASE_URL)
       const fetchedPermalinks = response.data.slice(1).map((item) => item.permalink)
       setPermalinks(fetchedPermalinks)
+      // console.log(savedIndex)
       currentPageRef.current = 0
       currentPagedRef.current = 1
       lastPermalinkRef.current = fetchedPermalinks[fetchedPermalinks.length - 1]
@@ -44,8 +56,8 @@ const ArticleList = () => {
     }
   }
 
-  // функция для запроса следующей статьи
-  const fetchNextArticle = async () => {
+  // Функция для загрузки следующей статьи
+  const fetchNextArticle = useCallback(async () => {
     if (isFetchingRef.current || stopFetchingRef.current) {
       return
     }
@@ -53,7 +65,7 @@ const ArticleList = () => {
     isFetchingRef.current = true
 
     try {
-      let nextPermalink // нужно ли запрашивать новую страницу
+      let nextPermalink
       if (currentPageRef.current < permalinks.length) {
         nextPermalink = permalinks[currentPageRef.current]
       } else {
@@ -68,8 +80,10 @@ const ArticleList = () => {
       const nextArticle = response[0]['requested-post']
       const newPermalinks = response.slice(1).map((item) => item.permalink)
 
+      // Добавление новой статьи в массив
       setArticlesArray((prevArticles) => [...prevArticles, nextArticle])
 
+      // Проверка на окончание списка статей
       if (newPermalinks.length === 0 || (response.length === 1 && !newPermalinks.length)) {
         stopFetchingRef.current = true
       } else {
@@ -86,21 +100,37 @@ const ArticleList = () => {
     } finally {
       isFetchingRef.current = false
     }
-  }
+  }, [permalinks, fetchArticleByPermalink])
 
-  // загрузка начальной статьи
+  // Функция для загрузки сохраненных статей
+  const loadSavedArticles = useCallback(
+    async (startIndex) => {
+      for (let i = 0; i <= startIndex; i++) {
+        await fetchNextArticle()
+      }
+    },
+    [fetchNextArticle]
+  )
+
+  // Загрузка первоначального списка статей при монтировании компонента
   useEffect(() => {
+    // const savedIndex = localStorage.getItem('visibleArticleIndex')
     loadInitialArticle()
   }, [])
 
-  // при получении нового массива permalinks запрашиваем новую статью
+  // Загрузка следующей статьи при изменении постоянных ссылок
   useEffect(() => {
-    if (permalinks) {
-      fetchNextArticle()
+    if (permalinks.length > 0) {
+      const savedIndex = localStorage.getItem('visibleArticleIndex')
+      if (savedIndex !== null) {
+        loadSavedArticles(parseInt(savedIndex, 10))
+      } else {
+        fetchNextArticle()
+      }
     }
-  }, [permalinks])
+  }, [permalinks, fetchNextArticle, loadSavedArticles])
 
-  // скролл и обновление видимой статьи
+  // Обработка события прокрутки и обновление видимой статьи
   useEffect(() => {
     const handleScroll = () => {
       const visibleArticleIndex = itemsRef.current.findIndex((item) => {
@@ -112,14 +142,13 @@ const ArticleList = () => {
       })
 
       if (
-        itemsRef.current[itemsRef.current.length - 1].getBoundingClientRect().height <
-        window.innerHeight <
-        2
+        itemsRef.current[itemsRef.current.length - 1]?.getBoundingClientRect().height <
+        window.innerHeight
       ) {
-        return fetchNextArticle()
+        fetchNextArticle()
       }
 
-      // если видимая статья изменилась, обновляем состояние и записываем в localStorage
+      // Обновление состояния и URL при изменении видимой статьи
       if (visibleArticleIndex !== -1 && visibleArticleIndex !== previousVisibleIndex) {
         setPreviousVisibleIndex(visibleArticleIndex)
         const newVisibleArticle = articlesArray[visibleArticleIndex]
@@ -128,15 +157,18 @@ const ArticleList = () => {
           const articleTitle = newVisibleArticle.post_title
           const encodedTitle = encodeURIComponent(articleTitle)
           window.history.replaceState(null, '', `?article=${encodedTitle}`)
+          localStorage.setItem('visibleArticleIndex', visibleArticleIndex)
+          const savedIndex = localStorage.getItem('visibleArticleIndex')
+          setStateAction(savedIndex)
+          // console.log('asdasd')
+          //Сохранение в localStorage
         }
 
-        // если текущая видимая статья последняя в массиве и есть еще статьи для загрузки, делаем запрос на следующую статью
         if (visibleArticleIndex === articlesArray.length - 1 && !stopFetchingRef.current) {
           fetchNextArticle()
         }
       }
 
-      // первый скролл, сразу запросим вторую статью
       if (visibleArticleIndex === -1 && previousVisibleIndex === null) {
         fetchNextArticle()
       }
@@ -147,27 +179,32 @@ const ArticleList = () => {
     return () => {
       window.removeEventListener('scroll', handleScroll)
     }
-  }, [previousVisibleIndex, articlesArray])
+  }, [previousVisibleIndex, articlesArray, fetchNextArticle])
 
-  // сохранение предудыщей статьи
+  // Прокрутка к сохраненной статье при загрузке страницы
   // useEffect(() => {
-  //   const handlePopState = async (event) => {
-  //     const newId = event.state?.id || getIdFromUrl();
-  //     setIdArticleVisible(newId);
-  //     if (articlesArray.length < newId) {
-  //       for (let i = articlesArray.length + 1; i <= newId; i++) {
-  //         const article = await fetchArticleById(i);
-  //         setArticlesArray((prevArticles) => [...prevArticles, article]);
-  //       }
-  //     }
-  //   };
+  //   const savedIndex = localStorage.getItem('visibleArticleIndex')
+  //   if (savedIndex !== null && itemsRef.current[savedIndex]) {
+  //     setActionTest(savedIndex)
+  //     // console.log(stateAction)
+  //     // console.log(stateAction + 1)
+  //   }
+  // }, [articlesArray])
 
-  //   window.addEventListener("popstate", handlePopState);
+  // useEffect(() => {
+  //   console.log(stateAction)
+  // }, [stateAction])
 
-  //   return () => {
-  //     window.removeEventListener("popstate", handlePopState);
-  //   };
-  // }, []);
+  // Получаем значение 'visibleArticleIndex' из localStorage при загрузке страницы
+  useEffect(() => {
+    const savedIndex = localStorage.getItem('visibleArticleIndex')
+
+    // Если значение есть в localStorage, устанавливаем его в stateAction
+    if (savedIndex !== null) {
+      setStateAction(savedIndex)
+      localStorage.setItem('visibleArticleIndex', savedIndex)
+    }
+  }, [])
 
   return (
     <div className='test'>
