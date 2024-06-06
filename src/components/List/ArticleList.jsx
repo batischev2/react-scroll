@@ -73,7 +73,7 @@ const ArticleList = () => {
         nextPermalink = permalinks[currentPageRef.current]
       } else {
         currentPagedRef.current += 1
-        localStorage.setItem('currentPage', currentPagedRef.current)
+        // localStorage.setItem('currentPage', currentPagedRef.current)
         nextPermalink = lastPermalinkRef.current
       }
 
@@ -144,10 +144,14 @@ const ArticleList = () => {
         const newVisibleArticle = articlesArray[visibleArticleIndex]
 
         if (newVisibleArticle && newVisibleArticle.post_title) {
-          const articleTitle = newVisibleArticle.post_title
-          const encodedTitle = encodeURIComponent(articleTitle)
-          window.history.replaceState(null, '', `?article=${encodedTitle}`)
-          console.log(permalinks[visibleArticleIndex])
+          // const articleTitle = newVisibleArticle.post_title
+          // const encodedTitle = encodeURIComponent(articleTitle)
+          window.history.replaceState(
+            null,
+            '',
+            `${newVisibleArticle.id}-${newVisibleArticle.post_name}`
+          )
+          // console.log(permalinks[visibleArticleIndex])
           localStorage.setItem('visibleArticle', permalinks[visibleArticleIndex])
         }
 
